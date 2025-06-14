@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, conint, validator
 from erpnext_egypt_compliance.erpnext_eta.utils import (
     eta_datetime_issued_format,
     get_company_eta_connector,
+    is_egypt_company,
 )
 from frappe import _
 from erpnext_egypt_compliance.erpnext_eta.ereceipt_submitter import EReceiptSubmitter
@@ -327,6 +328,8 @@ def build_erceipt_json(docname: str, doctype: str):
 
     # Set the global raw data: POS_INVOICE_RAW_DATA, COMPANY_DATA
     set_global_raw_data(docname, doctype)
+    if not is_egypt_company(POS_INVOICE_RAW_DATA.get("company")):
+        frappe.throw(_("ETA features are available only for Egyptian companies"))
 
     header: ReceiptHeader = get_pos_ereceipt_header()
     document_type: ReceiptDocumentType = ReceiptDocumentType()
@@ -388,6 +391,8 @@ def build_erceipt_json(docname: str, doctype: str):
 @frappe.whitelist()
 def download_ereceipt_json(docname, doctype):
     try:
+        if not is_egypt_company(frappe.db.get_value(doctype, docname, "company")):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
         file_content = build_erceipt_json(docname, doctype)
         ereceipt_as_json = file_content.model_dump_json()
         return download_eta_ereceipt_json(docname, ereceipt_as_json)
@@ -408,6 +413,8 @@ def download_eta_ereceipt_json(docname, file_content):
 def submit_ereceipt(docname, pos_profile, doctype, raise_throw=True) -> None:
     """Submit the POS E-Receipt to the API."""
     try:
+        if not is_egypt_company(frappe.db.get_value(doctype, docname, "company")):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
         ereceipt = build_erceipt_json(docname, doctype)
         connector = frappe.get_doc("ETA POS Connector", pos_profile)
         if connector:
@@ -424,6 +431,8 @@ def submit_ereceipt(docname, pos_profile, doctype, raise_throw=True) -> None:
 def fetch_ereceipt_status(docname, raise_throw=True):
     try:
         pos_profile = frappe.db.get_value("POS Invoice", docname, "pos_profile")
+        if not is_egypt_company(frappe.db.get_value("POS Invoice", docname, "company")):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
         connector = frappe.get_doc("ETA POS Connector", pos_profile)
         if connector:
             result = connector.get_receipt_submission(docname)

@@ -14,18 +14,24 @@ from erpnext_egypt_compliance.erpnext_eta.legacy_einvoice import (
 )
 from erpnext_egypt_compliance.erpnext_eta.utils import (
     download_eta_invoice_json,
+    is_egypt_company,
+    get_company_eta_connector,
 )
-from erpnext_egypt_compliance.erpnext_eta.doctype.eta_log.einvoice_logging_utils import submit_einvoice_using_logger
-from erpnext_egypt_compliance.erpnext_eta.utils import get_company_eta_connector
+from erpnext_egypt_compliance.erpnext_eta.doctype.eta_log.einvoice_logging_utils import (
+    submit_einvoice_using_logger,
+)
 from erpnext_egypt_compliance.erpnext_eta.einvoice_submitter import EInvoiceSubmitter
 
 
 @frappe.whitelist()
 def download_eta_inv_json(docname):
     is_pydantic_builder_enabled = frappe.db.get_single_value("ETA Settings", "pydantic_builder")
+    company = frappe.get_value("Sales Invoice", docname, "company")
+    if not is_egypt_company(company):
+        frappe.throw(_("ETA features are available only for Egyptian companies"))
     try:
         if is_pydantic_builder_enabled:
-                file_content = get_invoice_asjson(docname)
+            file_content = get_invoice_asjson(docname)
         else:
             invoice_doc = get_eta_invoice_legacy(docname)
             file_content = json.dumps(invoice_doc, indent=4, ensure_ascii=False).encode("utf8")
@@ -40,6 +46,8 @@ def get_eta_pdf(docname):
         sinv_doc_company = frappe.get_value("Sales Invoice", docname, "company")
         if not sinv_doc_company:
             frappe.throw(_("Company not found for the Sales Invoice"))
+        if not is_egypt_company(sinv_doc_company):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
 
         connector = get_company_eta_connector(sinv_doc_company)
         if not connector:
@@ -55,6 +63,9 @@ def get_eta_pdf(docname):
 @frappe.whitelist()
 def fetch_eta_status(docname):
     is_pydantic_builder_enabled = frappe.db.get_single_value("ETA Settings", "pydantic_builder")
+    company = frappe.get_value("Sales Invoice", docname, "company")
+    if not is_egypt_company(company):
+        frappe.throw(_("ETA features are available only for Egyptian companies"))
     if is_pydantic_builder_enabled:
         return fetch_eta_status_legacy(docname)
     else:
@@ -67,6 +78,8 @@ def submit_eta_invoice(docname):
         is_pydantic_builder_enabled = frappe.db.get_single_value("ETA Settings", "pydantic_builder")
         enable_eta_log = frappe.db.get_single_value("ETA Settings", "enable_eta_log")
         company = frappe.get_value("Sales Invoice", docname, "company")
+        if not is_egypt_company(company):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
         inv = get_invoice_asjson(docname, as_dict=True)
         if is_pydantic_builder_enabled:
             return submit_eta_invoice_legacy(docname, inv) if not enable_eta_log else submit_einvoice_using_logger(inv, company)
@@ -79,6 +92,8 @@ def submit_eta_invoice(docname):
 def cancel_eta_invoice(docname, reason):
     try:
         doc = frappe.get_doc("Sales Invoice", docname)
+        if not is_egypt_company(doc.company):
+            frappe.throw(_("ETA features are available only for Egyptian companies"))
         connector = get_company_eta_connector(doc.company)
         if not connector:
             frappe.throw(_("ETA Connector not found for company {0}").format(doc.company))
