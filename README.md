@@ -9,7 +9,6 @@ ETA operations only run for companies where the **Country** field is set to
 Custom fields such as *ETA Default Activity Code* use dynamic requirements based
 on Frappe `depends_on` expressions like `eval:doc.country == 'Egypt'` so
 non‑Egyptian companies are not forced to fill them.
-
 #### License
 
 GPLv3
