@@ -6,6 +6,14 @@ import requests
 import json
 
 
+def is_egypt_company(company_name: str) -> bool:
+    """Return ``True`` if the given company is based in Egypt."""
+    if not company_name:
+        return False
+    country = frappe.db.get_value("Company", company_name, "country")
+    return country == "Egypt"
+
+
 
 def download_eta_invoice_json(docname, file_content):
 	is_pydantic_builder = frappe.db.get_single_value("ETA Settings",  "pydantic_builder")
@@ -95,21 +103,25 @@ def gracefully_autofetch_eta_status(company):
 
 
 def autofetch_eta_status_process():
-	companies = frappe.get_all("Company", pluck="name")
-	for company in companies:
-		try:
-			gracefully_autofetch_eta_status(company)
-		except:
-			print("An exception occurred")  # TODO handle error properly.
+    companies = frappe.get_all("Company", pluck="name")
+    for company in companies:
+        if not is_egypt_company(company):
+            continue
+        try:
+            gracefully_autofetch_eta_status(company)
+        except Exception:
+            print("An exception occurred")  # TODO handle error properly.
 
 
 def autosubmit_eta_process():
-	companies = frappe.get_all("Company", pluck="name")
-	for company in companies:
-		try:
-			gracefully_autosubmit_signed_documents(company)
-		except:
-			print("An exception occurred")  # TODO handle error properly.
+    companies = frappe.get_all("Company", pluck="name")
+    for company in companies:
+        if not is_egypt_company(company):
+            continue
+        try:
+            gracefully_autosubmit_signed_documents(company)
+        except Exception:
+            print("An exception occurred")  # TODO handle error properly.
 
 def create_eta_log(
 	posting_date: datetime = None,

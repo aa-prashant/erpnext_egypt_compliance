@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 from erpnext_egypt_compliance.erpnext_eta.utils import (
     get_company_eta_connector,
+    is_egypt_company,
 )
 
 # from erpnext_eta.erpnext_eta.utils import get_eta_invoice
@@ -14,6 +15,8 @@ from erpnext_egypt_compliance.erpnext_eta.einvoice_schema import get_invoice_asj
 
 @frappe.whitelist()
 def get_invoice_names_to_sign(company):
+    if not is_egypt_company(company):
+        return []
     connector = get_company_eta_connector(company)
     docstatus = ["1"]
     if connector.get("all_docstatus"):
@@ -34,6 +37,9 @@ def get_invoice_names_to_sign(company):
 @frappe.whitelist()
 def get_eta_invoice_for_signer(docname):
     try:
+        company = frappe.db.get_value("Sales Invoice", docname, "company")
+        if not is_egypt_company(company):
+            return {"error": "Company not based in Egypt"}
         frappe.set_value("Sales Invoice", docname, "eta_signature_date", datetime.today())
         frappe.set_value("Sales Invoice", docname, "eta_signature_time", datetime.now())
         frappe.db.commit()
@@ -53,5 +59,8 @@ def get_eta_invoice_for_signer(docname):
 
 @frappe.whitelist()
 def set_invoice_signature(docname, signature, doctype="Sales Invoice"):
+    company = frappe.db.get_value(doctype, docname, "company")
+    if not is_egypt_company(company):
+        return "Not Applicable"
     frappe.set_value(doctype, docname, "eta_signature", signature)
     return "Signature Received"
